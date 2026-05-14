@@ -15,3 +15,13 @@ The logs are available at `/tmp/CheckEvara.log`
 
 It ask you your Moodle Session Cookie, you can watch the following example to see how to get it:
 ![example](./assets/get_moodle_cookie_example.gif)
+
+
+## Development Milestones
+- [x] Moodle data handling
+- [x] Notification daemon
+- [x] Notifications creation
+- [ ] Specific image for checks
+- [ ] Restart daemon at session start on PIE
+- [ ] Config to get info from last use
+- [ ] Auto-log to moodle from kerberos
