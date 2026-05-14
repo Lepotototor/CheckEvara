@@ -35,10 +35,14 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 }
 
-courses = []
 session = requests.Session()
 
+DATA_PATH = os.path.expanduser("~/.local/share/check-evara/")
+IMAGE_PATH = DATA_PATH + "logo.png"
+IMAGE_URL = "https://media.tenor.com/I72UDkaxRyIAAAAM/67-bunny.gif"
+
 def get_courses(html_dashboard):
+    courses = []
 
     for line in html_dashboard.split("\n"):
         if not "https://moodle.epita.fr/course/view.php?id=" in line:
@@ -93,7 +97,7 @@ def get_check_presence_times(course_id):
     full_link = get_check_presence_from_course(course_id)
 
     if full_link is None:
-        return None
+        return []
 
     link = full_link['href']
 
@@ -161,8 +165,24 @@ def get_moodle_dashboard():
         print(f"{PURPLE}{BOLD}Error: {ENDC}{e}")
 
 
+def check_image():
+    if os.path.isfile(IMAGE_PATH):
+        return
+
+    try:
+        os.makedirs(DATA_PATH)
+    except FileExistsError:
+        None
+
+    args = ["ls", DATA_PATH]
+    subprocess.run(args)
+    args = ["wget", IMAGE_URL, f"--output-document={IMAGE_PATH}"]
+    subprocess.run(args)
+
 
 def notification_daemon(times):
+    check_image()
+
     logging.info("Notification daemon launched")
     args = ['notify-send', 'CheckEvara', 'Successfully launched CheckEvara notification daemon', '-a', 'CheckEvara']
     subprocess.run(args)
@@ -180,9 +200,18 @@ def notification_daemon(times):
         logging.info("Running notify-send")
 
         notif_time = check['duration'].total_seconds() * 1000
-        args = ['notify-send', 'CheckEvara', 'There is a Check Presence', '-u', 'critical', '-a', 'CheckEvara', '-t', str(int(notif_time))]
+        args = ['notify-send', 'CheckEvara', 'There is a Check Presence', '--urgency=critical', '--app-name=CheckEvara', f"--expire-time={str(int(notif_time))}", f"--icon={IMAGE_PATH}"]
 
-        subprocess.run(args)
+        check_image()
+
+        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        with process.stdout:
+            for line in iter(process.stdout.readline, b''): # b'\n'-separated lines
+                logging.info('got line from subprocess: %r', line)
+        exitcode = process.wait()
+
+        if exitcode != 0:
+            logging.error(f"It seem that notify-send failed with args: {args}")
 
 
 def create_daemon(times):
@@ -213,7 +242,12 @@ def create_daemon(times):
     sys.stdout = open('/tmp/checkevara_daemon.log', 'a')
     sys.stderr = open('/tmp/checkevara_error.log', 'a')
     
-    notification_daemon(times)
+    try:
+        notification_daemon(times)
+    except Exception as e:
+        logging.error(f"Python error: {e}")
+        sys.exit(1)
+
     sys.exit(0)
 
 if __name__ == "__main__":
@@ -266,4 +300,5 @@ if __name__ == "__main__":
         print(f"No Check Presence found")
         exit(0)
 
+    # notification_daemon(times) # to debug
     create_daemon(times)
