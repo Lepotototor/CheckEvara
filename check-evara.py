@@ -10,7 +10,6 @@ import sys
 import time
 
 from bs4 import BeautifulSoup
-from pprint import pprint
 from urllib.parse import urlparse, parse_qs
 
 
@@ -41,57 +40,57 @@ DATA_PATH = os.path.expanduser("~/.local/share/check-evara/")
 IMAGE_PATH = DATA_PATH + "logo.png"
 IMAGE_URL = "https://media.tenor.com/I72UDkaxRyIAAAAM/67-bunny.gif"
 
+
 def get_courses(html_dashboard):
     courses = []
 
     for line in html_dashboard.split("\n"):
-        if not "https://moodle.epita.fr/course/view.php?id=" in line:
+        if "https://moodle.epita.fr/course/view.php?id=" not in line:
             continue
-
 
         soup = BeautifulSoup(line, 'html.parser')
 
         link = soup.find('a')
-            
+
         if link:
             # get cours name
             name = link.get('title')
 
             if name is None:
                 continue
-                
+
             # get course link
             href = link.get('href')
 
             query = urlparse(href).query
             params = parse_qs(query)
             course_id = params.get('id', [None])[0]
-            
+
             courses.append({"name": name, "course_id": course_id})
 
     return courses
 
+
 def get_check_presence_from_course(course_id):
     url = f"https://moodle.epita.fr/course/view.php?id={course_id}"
-    
+
     try:
         response = session.get(url, cookies=cookies, headers=headers)
         response.raise_for_status()  # check for errors
-        
+
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        page_title = soup.find('div', class_='page-header-headings').text.strip()
-        
-        links = []
+
         for link in soup.find_all('a', class_='aalink'):
             if "https://moodle.epita.fr/mod/attendance" in link["href"]:
                 return link
-            
+
         return None
-        
+
     except Exception as e:
-        print( f"Error when trying to get check_presence link from course {course_id} : {e}")
+        print(f"Error when trying to get check_presence link from course {
+              course_id} : {e}")
         return None
+
 
 def get_check_presence_times(course_id):
     full_link = get_check_presence_from_course(course_id)
@@ -104,7 +103,7 @@ def get_check_presence_times(course_id):
     try:
         response = session.get(link, cookies=cookies, headers=headers)
         response.raise_for_status()  # check for errors
-        
+
         soup = BeautifulSoup(response.text, 'html.parser')
 
         dates = []
@@ -112,7 +111,7 @@ def get_check_presence_times(course_id):
         for date in soup.find_all('td', class_='datecol'):
             date_txt = date.getText()
             date_txt = re.sub(r'\(.*\)', '', date_txt).replace('  ', ' ')
-            
+
             # use to split start time and end time
             # d.m.y (day.) H:M - h:M  =>  [ 'd.m.y H:M ', '' H:M' ]
             date_parts = date_txt.split('-')
@@ -127,10 +126,10 @@ def get_check_presence_times(course_id):
             day_delta = date_start.date() - time_end.date()
             time_delta = time_end - date_start + day_delta
 
-            dates.append({ "start": date_start, "duration": time_delta})
+            dates.append({"start": date_start, "duration": time_delta})
 
         return dates
-        
+
     except Exception as e:
         print(f"Error when trying to get check_presence times : {e}")
         return None
@@ -140,17 +139,18 @@ def get_moodle_dashboard():
     # first entry point to get moodle pages
     # So we check that the connection works
     try:
-        response = requests.get(f"{MOODLE_URL}/my/", cookies=cookies, headers=headers)
-        
+        response = requests.get(f"{MOODLE_URL}/my/",
+                                cookies=cookies, headers=headers)
+
         # check if it work
         response.raise_for_status()
-        
+
         # parse content
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         # searching user menu to check if it work
         user_menu = soup.find('span', class_='userbutton')
-        
+
         if user_menu:
             print(f"Connect as : {user_menu.text.strip()}")
             print("-" * 50)
@@ -158,7 +158,7 @@ def get_moodle_dashboard():
             return get_courses(response.text)
         else:
             print(f"{PURPLE}{BOLD}Cant find user, check your cookie{ENDC}")
-            
+
     except requests.exceptions.HTTPError as err:
         print(f"{PURPLE}{BOLD}HTTP error: {ENDC}{err}")
     except Exception as e:
@@ -184,7 +184,8 @@ def notification_daemon(times):
     check_image()
 
     logging.info("Notification daemon launched")
-    args = ['notify-send', 'CheckEvara', 'Successfully launched CheckEvara notification daemon', '-a', 'CheckEvara']
+    args = ['notify-send', 'CheckEvara',
+            'Successfully launched CheckEvara notification daemon', '-a', 'CheckEvara']
     subprocess.run(args)
 
     while len(times) > 0:
@@ -200,13 +201,15 @@ def notification_daemon(times):
         logging.info("Running notify-send")
 
         notif_time = check['duration'].total_seconds() * 1000
-        args = ['notify-send', 'CheckEvara', 'There is a Check Presence', '--urgency=critical', '--app-name=CheckEvara', f"--expire-time={str(int(notif_time))}", f"--icon={IMAGE_PATH}"]
+        args = ['notify-send', 'CheckEvara', 'There is a Check Presence', '--urgency=critical',
+                '--app-name=CheckEvara', f"--expire-time={str(int(notif_time))}", f"--icon={IMAGE_PATH}"]
 
         check_image()
 
-        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         with process.stdout:
-            for line in iter(process.stdout.readline, b''): # b'\n'-separated lines
+            for line in iter(process.stdout.readline, b''):  # b'\n'-separated lines
                 logging.info('got line from subprocess: %r', line)
         exitcode = process.wait()
 
@@ -219,7 +222,7 @@ def create_daemon(times):
     try:
         pid = os.fork()
         if pid > 0:
-            return 
+            return
 
     except OSError as e:
         print(f"Fork error #1: {e}")
@@ -241,7 +244,7 @@ def create_daemon(times):
     # Redirecting outputs to logs
     sys.stdout = open('/tmp/checkevara_daemon.log', 'a')
     sys.stderr = open('/tmp/checkevara_error.log', 'a')
-    
+
     try:
         notification_daemon(times)
     except Exception as e:
@@ -250,8 +253,10 @@ def create_daemon(times):
 
     sys.exit(0)
 
+
 if __name__ == "__main__":
-    MOODLE_SESSION_COOKIE = input(BOLD + "Enter your Moodle cookie: " + ENDC).strip()
+    MOODLE_SESSION_COOKIE = input(
+        BOLD + "Enter your Moodle cookie: " + ENDC).strip()
     cookies = {
         'MoodleSession': MOODLE_SESSION_COOKIE
     }
@@ -269,25 +274,28 @@ if __name__ == "__main__":
     try:
         idx = int(input(BOLD + "Which class to check Check Presence: " + ENDC))
     except:
-        print(FAIL + "Invalid class number" + ENDC)
+        print(PURPLE + "Invalid class number" + ENDC)
         exit(1)
 
     if idx < 1 or idx > len(courses):
-        print(FAIL + "Invalid class number" + ENDC)
+        print(PURPLE + "Invalid class number" + ENDC)
         exit(1)
 
     course = courses[len(courses) - idx]
-    print(f"Search check presence page for {PURPLE}{BOLD}`{course['name']}`{ENDC} with id {PURPLE}{BOLD}`{course['course_id']}`{ENDC}")
+    print(f"Search check presence page for {PURPLE}{BOLD}`{course['name']}`{
+          ENDC} with id {PURPLE}{BOLD}`{course['course_id']}`{ENDC}")
 
     times = get_check_presence_times(course['course_id'])
 
     # TEST
-    times.append({ "start": datetime.datetime.now() + datetime.timedelta(minutes=1), "duration": datetime.timedelta(seconds=30) })
-    times.append({ "start": datetime.datetime.now() + datetime.timedelta(seconds=15), "duration": datetime.timedelta(seconds=30) })
+    times.append({"start": datetime.datetime.now(
+    ) + datetime.timedelta(minutes=1), "duration": datetime.timedelta(seconds=30)})
+    times.append({"start": datetime.datetime.now(
+    ) + datetime.timedelta(seconds=15), "duration": datetime.timedelta(seconds=30)})
 
     # keep only future check presence
     now = datetime.datetime.now()
-    times = [ t for t in times if t['start'] > now ]
+    times = [t for t in times if t['start'] > now]
 
     # sort in order of check presence
     times.sort(key=lambda t: t['start'])
