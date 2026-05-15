@@ -28,6 +28,8 @@ nix-shell -p python313Packages.beautifulsoup4 python313Packages.requests libnoti
 - [x] Notification daemon
 - [x] Notifications creation
 - [x] Specific image for checks
+- [ ] Remove dependencies not on PIE or inject them
+- [ ] Add notification action to close notif
 - [ ] Restart daemon at session start on PIE
 - [ ] Config to get info from last use
 - [ ] Auto-log to moodle from kerberos
