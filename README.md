@@ -18,6 +18,16 @@ The logs are available at `/tmp/CheckEvara.log`
 ```bash
 nix-shell -p python313Packages.beautifulsoup4 python313Packages.requests libnotify
 ```
+Or you can add those in you packages list in home-manager config
+```nix
+libnotify
+
+(pkgs.python313.withPackages (ppkgs: [
+  ppkgs.beautifulsoup4
+  ppkgs.types-beautifulsoup4
+  ppkgs.requests
+]))
+```
 
 ### It ask you your Moodle Session Cookie, you can watch the following example to see how to get it:
 ![example](./assets/get_moodle_cookie_example.gif)
